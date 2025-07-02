@@ -1,9 +1,10 @@
 import time
 import random
+import socket
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 from twocaptcha import TwoCaptcha
 
-# 🔧 الإعدادات
+# === إعدادات ===
 TARGET_URL = "https://shrinkme.ink/KUZP"
 VISITS = 1000
 DELAY_SECONDS = 15
@@ -17,7 +18,7 @@ PROXIES = [
     "51.158.119.88:8811"
 ]
 
-# ✅ تفعيل التخفي اليدوي (بديل playwright-stealth)
+# === تفعيل التخفي اليدوي (stealth) ===
 def stealth_sync(page):
     page.evaluate("""
         () => {
@@ -28,6 +29,18 @@ def stealth_sync(page):
         }
     """)
 
+# === التحقق من أن البروكسي يعمل ===
+def is_proxy_alive(proxy):
+    try:
+        proxy_address = proxy.replace("http://", "")
+        host, port = proxy_address.split(":")
+        socket.setdefaulttimeout(5)
+        socket.create_connection((host, int(port)))
+        return True
+    except:
+        return False
+
+# === حل reCAPTCHA باستخدام 2captcha ===
 def solve_recaptcha(solver, site_key, url):
     print("🧩 جاري حل reCAPTCHA ...")
     captcha_id = solver.recaptcha(sitekey=site_key, url=url)
@@ -36,13 +49,12 @@ def solve_recaptcha(solver, site_key, url):
     print("✅ تم الحل:", solution)
     return solution
 
+# === إغلاق النوافذ المنبثقة ===
 def close_popups(page):
     try:
         popup_selectors = [
-            "div.popup-close",
-            "button.close",
-            ".modal-close",
-            "div#popup-ad",
+            "div.popup-close", "button.close",
+            ".modal-close", "div#popup-ad",
             "iframe[src*='ads']"
         ]
         for selector in popup_selectors:
@@ -50,34 +62,44 @@ def close_popups(page):
             for el in elements:
                 try:
                     el.click()
-                    print(f"🛑 تم إغلاق نافذة ({selector})")
+                    print(f"🛑 تم إغلاق نافذة: {selector}")
                     page.wait_for_timeout(1000)
                 except:
                     continue
     except Exception as e:
         print(f"⚠️ خطأ أثناء إغلاق النوافذ: {e}")
 
+# === الكود الرئيسي ===
 def main():
     solver = TwoCaptcha(TWO_CAPTCHA_API)
 
     with sync_playwright() as p:
         for i in range(VISITS):
-            raw_proxy = random.choice(PROXIES)
-            proxy = "http://" + raw_proxy if not raw_proxy.startswith("http") else raw_proxy
+            proxy = None
+            for attempt in range(len(PROXIES)):
+                candidate = "http://" + random.choice(PROXIES).replace("http://", "")
+                if is_proxy_alive(candidate):
+                    proxy = candidate
+                    break
+
+            if not proxy:
+                print("❌ لا يوجد أي بروكسي شغال حالياً.")
+                return
+
             print(f"\n🔄 زيارة {i+1}/{VISITS} باستخدام البروكسي: {proxy}")
 
-            browser = p.chromium.launch(headless=True, proxy={"server": proxy})
-            context = browser.new_context()
-            page = context.new_page()
-            stealth_sync(page)
-
             try:
+                browser = p.chromium.launch(headless=True, proxy={"server": proxy})
+                context = browser.new_context()
+                page = context.new_page()
+                stealth_sync(page)
+
                 page.goto(TARGET_URL, timeout=60000)
                 page.wait_for_timeout(5000)
 
                 close_popups(page)
 
-                # التحقق من reCAPTCHA
+                # التحقق من وجود reCAPTCHA
                 recaptcha_frame = next((f for f in page.frames if "google.com/recaptcha" in f.url), None)
 
                 if recaptcha_frame:
@@ -102,14 +124,10 @@ def main():
                         page.evaluate(
                             f'document.getElementById("g-recaptcha-response").innerHTML="{solution}";'
                         )
-                        page.evaluate(
-                            """
-                            var recaptchaCallback = document.getElementById('g-recaptcha-response');
-                            if (recaptchaCallback) {
-                                recaptchaCallback.dispatchEvent(new Event('change'));
-                            }
-                            """
-                        )
+                        page.evaluate("""
+                            var el = document.getElementById('g-recaptcha-response');
+                            if (el) { el.dispatchEvent(new Event('change')); }
+                        """)
                         page.wait_for_timeout(5000)
                     else:
                         print("⚠️ لم يتم العثور على sitekey")
