@@ -1,3 +1,4 @@
 playwright
 playwright-stealth
-twocaptcha-python
+2captcha-python
+
