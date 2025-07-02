@@ -1,10 +1,9 @@
 import time
 import random
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
-from playwright_stealth import stealth_sync
 from twocaptcha import TwoCaptcha
 
-# 🔧 الإعدادات مضمّنة هنا مباشرة
+# 🔧 الإعدادات
 TARGET_URL = "https://shrinkme.ink/KUZP"
 VISITS = 1000
 DELAY_SECONDS = 15
@@ -17,6 +16,17 @@ PROXIES = [
     "103.216.82.36:6667",
     "51.158.119.88:8811"
 ]
+
+# ✅ تفعيل التخفي اليدوي (بديل playwright-stealth)
+def stealth_sync(page):
+    page.evaluate("""
+        () => {
+            Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+            window.chrome = { runtime: {} };
+            Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']});
+            Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3]});
+        }
+    """)
 
 def solve_recaptcha(solver, site_key, url):
     print("🧩 جاري حل reCAPTCHA ...")
@@ -66,7 +76,7 @@ def main():
 
                 close_popups(page)
 
-                # تحقق من وجود reCAPTCHA
+                # التحقق من reCAPTCHA
                 recaptcha_frame = next((f for f in page.frames if "google.com/recaptcha" in f.url), None)
 
                 if recaptcha_frame:
@@ -105,7 +115,7 @@ def main():
 
                 close_popups(page)
 
-                # الضغط على زر "تخطي" أو "المتابعة"
+                # الضغط على زر "تخطي" أو "استمرار"
                 clicked = False
                 buttons = page.query_selector_all("a, button")
                 for btn in buttons:
@@ -136,3 +146,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
