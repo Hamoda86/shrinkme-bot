@@ -62,7 +62,8 @@ def main():
 
     with sync_playwright() as p:
         for i in range(VISITS):
-            proxy = random.choice(PROXIES)
+            raw_proxy = random.choice(PROXIES)
+            proxy = "http://" + raw_proxy if not raw_proxy.startswith("http") else raw_proxy
             print(f"\n🔄 زيارة {i+1}/{VISITS} باستخدام البروكسي: {proxy}")
 
             browser = p.chromium.launch(headless=True, proxy={"server": proxy})
