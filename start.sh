@@ -1,3 +1,5 @@
-echo -e "#!/bin/bash\npip install -r requirements.txt\nplaywright install\npython main.py" > start.sh
-chmod +x start.sh
+#!/bin/bash
+pip install -r requirements.txt
+playwright install
+python main.py
 

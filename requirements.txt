@@ -1,2 +1,3 @@
-echo -e "playwright==1.37.0\ntwocaptcha-python==1.0.9" > requirements.txt
+playwright==1.37.0
+twocaptcha-python==1.0.9
 
