@@ -1,3 +1,2 @@
-playwright
-2captcha-python
+echo -e "playwright==1.37.0\ntwocaptcha-python==1.0.9" > requirements.txt
 
